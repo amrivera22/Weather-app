@@ -1,93 +1,57 @@
-// Add event listeners to the buttons
-document.getElementById('submit').addEventListener('click', getWeather);
-document.getElementById('forecast-btn').addEventListener('click', getForecast);
-
-// Function to get current weather
-function getWeather() {
+document.getElementById('getWeather').addEventListener('click', async function() {
     const city = document.getElementById('city').value;
+    const state = document.getElementById('state').value;
+    const location = `${city},${state}`; // Combine city and state
     const unit = document.querySelector('input[name="unit"]:checked').value;
+    const loadingSpinner = document.getElementById('loading');
+    const resultContainer = document.getElementById('result');
+    const forecastContainer = document.getElementById('forecast');
+    const weatherData = document.getElementById('weatherData');
 
-    // Check if city is empty
-    if (city === "") {
-        alert("Please enter a city name.");
-        return;
+    loadingSpinner.style.display = 'block'; // Show loading spinner
+    resultContainer.style.display = 'none'; // Hide result container
+    forecastContainer.style.display = 'none'; // Hide forecast container
+
+    try {
+        // Fetch current weather data
+        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${location}&units=${unit}&appid=efef9960a79f8ff4c792fac05366c741`);
+        const data = await response.json();
+
+        // Display current weather data
+        if (data.main) {
+            weatherData.innerText = `Temperature: ${data.main.temp}°${unit === 'metric' ? 'C' : 'F'}\nWeather: ${data.weather[0].description}`;
+            resultContainer.style.display = 'block';
+        } else {
+            weatherData.innerText = 'Location not found. Please try again.';
+            resultContainer.style.display = 'block';
+        }
+
+        // Fetch 5-day forecast data
+        const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${location}&units=${unit}&appid=efef9960a79f8ff4c792fac05366c741`);
+        const forecastData = await forecastResponse.json();
+
+        // Display 5-day forecast
+        if (forecastData.list) {
+            const forecastList = forecastData.list;
+            forecastContainer.innerHTML = '<h2>5-Day Forecast</h2><ul>';
+            for (let i = 0; i < forecastList.length; i += 8) { // Get one forecast entry per day
+                const forecast = forecastList[i];
+                const date = new Date(forecast.dt * 1000);
+                const day = date.toLocaleDateString();
+                const temp = forecast.main.temp;
+                const description = forecast.weather[0].description;
+
+                forecastContainer.innerHTML += `<li>${day}: ${temp}°${unit === 'metric' ? 'C' : 'F'}, ${description}</li>`;
+            }
+            forecastContainer.innerHTML += '</ul>';
+            forecastContainer.style.display = 'block'; // Show forecast container
+        }
+
+    } catch (error) {
+        console.error('Error fetching weather data:', error);
+        weatherData.innerText = 'Error fetching weather data. Please try again later.';
+        resultContainer.style.display = 'block';
+    } finally {
+        loadingSpinner.style.display = 'none'; // Hide loading spinner
     }
-
-    const apiKey = "efef9960a79f8ff4c792fac05366c741";
-    const apiURL = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=${unit === 'F' ? 'imperial' : 'metric'}&appid=${apiKey}`;
-
-    // Show the loading spinner
-    document.getElementById('loading').style.display = 'block';
-
-    // Fetch data from the weather API
-    fetch(apiURL)
-        .then(response => response.json())
-        .then(data => {
-            // Check if the city was found
-            if (data.cod !== 200) {
-                alert("City not found. Please try again.");
-                document.getElementById('loading').style.display = 'none';
-                return;
-            }
-
-            // Hide the spinner and show the result section
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('weather-result').style.display = 'block';
-
-            // Update the UI with the weather data
-            document.getElementById('temperature').textContent = `${data.main.temp}°${unit}`;
-            document.getElementById('city-name').textContent = data.name;
-            document.getElementById('weather-icon').src = `http://openweathermap.org/img/w/${data.weather[0].icon}.png`;
-        })
-        .catch(error => {
-            alert("Error fetching the weather data. Please try again.");
-            console.error('Error:', error);
-        });
-}
-
-// Function to get the 3-5 day forecast
-function getForecast() {
-    const city = document.getElementById('city').value;
-    const unit = document.querySelector('input[name="unit"]:checked').value;
-
-    // Check if city is empty
-    if (city === "") {
-        alert("Please enter a city name.");
-        return;
-    }
-
-    const apiKey = "efef9960a79f8ff4c792fac05366c741";
-    const apiURL = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=${unit === 'F' ? 'imperial' : 'metric'}&appid=${apiKey}`;
-
-    // Fetch data from the forecast API
-    fetch(apiURL)
-        .then(response => response.json())
-        .then(data => {
-            // Check if the city was found
-            if (data.cod !== "200") {
-                alert("City not found for forecast. Please try again.");
-                return;
-            }
-
-            // Build the forecast HTML
-            let forecastHTML = "<h3>3-5 Day Forecast:</h3>";
-            for (let i = 0; i < data.list.length; i += 8) {
-                const forecast = data.list[i];
-                forecastHTML += `
-                    <div>
-                        <p>${new Date(forecast.dt_txt).toLocaleDateString()}</p>
-                        <p>${forecast.main.temp}°${unit}</p>
-                        <img src="http://openweathermap.org/img/w/${forecast.weather[0].icon}.png" alt="Weather icon">
-                    </div>
-                `;
-            }
-
-            // Display the forecast
-            document.getElementById('forecast-result').innerHTML = forecastHTML;
-            document.getElementById('forecast-result').style.display = 'block';
-        })
-        .catch(error => {
-            alert("Error fetching the forecast data. Please try again.");
-            console.error('Error:', error);
-        });
-}
+});
